@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
+  const [showConfirmationMessage, setShowConfirmationMessage] = useState(false)
   // Passenger login state
   const [passengerEmail, setPassengerEmail] = useState("")
   const [passengerPassword, setPassengerPassword] = useState("")
@@ -57,11 +58,15 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
     setError("")
+    setShowConfirmationMessage(false)
 
     try {
       const { user, error } = await signIn(passengerEmail, passengerPassword)
 
       if (error) {
+        if (error.includes('confirm your email')) {
+          setShowConfirmationMessage(true)
+        }
         setError(error)
         setIsLoading(false)
         return
@@ -79,7 +84,7 @@ export default function LoginPage() {
         return
       }
 
-      // Store user info in localStorage for demo purposes
+      // Store user info in localStorage
       localStorage.setItem("userType", "passenger")
       localStorage.setItem("isLoggedIn", "true")
       localStorage.setItem("userName", `${user.first_name} ${user.last_name}`)
@@ -92,6 +97,28 @@ export default function LoginPage() {
       console.error("Login error:", err)
       setError("An error occurred during login. Please try again.")
       setIsLoading(false)
+    }
+  }
+
+  const handleResendConfirmation = async () => {
+    if (!passengerEmail) {
+      setError("Please enter your email address first")
+      return
+    }
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: passengerEmail,
+      })
+
+      if (error) throw error
+      
+      setError("Confirmation email resent. Please check your inbox.")
+      setShowConfirmationMessage(false)
+    } catch (err) {
+      console.error("Error resending confirmation:", err)
+      setError("Failed to resend confirmation email. Please try again.")
     }
   }
 
@@ -219,6 +246,25 @@ export default function LoginPage() {
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+               {error && (
+                <Alert variant={showConfirmationMessage ? "default" : "destructive"} className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {error}
+                    {showConfirmationMessage && (
+                      <>
+                        {" "}
+                        <button
+                          className="text-[#006400] hover:underline font-medium"
+                          onClick={handleResendConfirmation}
+                        >
+                          Resend confirmation email
+                        </button>
+                      </>
+                    )}
+                  </AlertDescription>
                 </Alert>
               )}
 

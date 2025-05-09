@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { LockIcon, MailIcon, UserIcon, PhoneIcon, AlertCircle } from "lucide-react"
+import { LockIcon, MailIcon, UserIcon, PhoneIcon, AlertCircle, CheckCircleIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,6 +15,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SiteHeader } from "@/components/site-header"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { signUp } from "@/lib/auth"
+
+type RegistrationError = {
+  message: string;
+  code?: string;
+}
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -33,7 +38,7 @@ export default function RegisterPage() {
     idType: "student_id", // Default ID type
     idNumber: "",
     userType: "student", // Default user type
-    role: "passenger", // Default role
+    role: "passenger" as "passenger" | "admin" | "driver", // Default role
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,23 +82,84 @@ export default function RegisterPage() {
       })
 
       if (error) {
-        setError(error)
+        // Handle specific error types
+        const registrationError = error as unknown as RegistrationError
+        let errorMessage = "" // Removed "Registration failed." prefix
+
+        switch (registrationError.code) {
+          case "auth/email-already-in-use":
+            errorMessage = "User already exists. Please try logging in instead."
+            break
+          case "auth/invalid-email":
+            errorMessage = "Please enter a valid email address."
+            break
+          case "auth/network-request-failed":
+            errorMessage = "Network error. Please check your connection."
+            break
+          default:
+            errorMessage = registrationError.message || "Registration failed. Please try again."
+        }
+
+        setError(errorMessage)
+
+        // If email exists, show login link in error alert
+        if (registrationError.code === "auth/email-already-in-use") {
+          return (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between w-full">
+                <span>{error}</span>
+                <Link 
+                  href="/login" 
+                  className="text-destructive-foreground underline hover:no-underline ml-2"
+                >
+                  Login here
+                </Link>
+              </AlertDescription>
+            </Alert>
+          )
+        }
+
         setIsLoading(false)
         return
       }
 
-      setSuccess("Registration successful! You can now log in.")
+      // Registration successful
+      setSuccess("Registration successful! Please check your email to confirm your account.")
 
-      // Redirect to login page after a short delay
+      // Clear form
+      setFormData({
+        email: "",
+        password: "",
+        confirmPassword: "",
+        firstName: "",
+        lastName: "",
+        phoneNumber: "",
+        idType: "student_id",
+        idNumber: "",
+        userType: "student",
+        role: "passenger",
+      })
+
+      // Redirect to login page after a delay
       setTimeout(() => {
-        router.push("/login")
-      }, 2000)
+        router.push("/login?registered=true")
+      }, 3000)
+
     } catch (err) {
       console.error("Registration error:", err)
-      setError("An error occurred during registration. Please try again.")
+      setError("An unexpected error occurred. Please try again later.")
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const isPasswordValid = (password: string) => {
+    return password.length >= 8
+  }
+
+  const doPasswordsMatch = (password: string, confirmPassword: string) => {
+    return password === confirmPassword
   }
 
   return (
@@ -121,8 +187,11 @@ export default function RegisterPage() {
               )}
 
               {success && (
-                <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
-                  <AlertDescription>{success}</AlertDescription>
+                <Alert className="mb-4 bg-green-50 border-green-200">
+                  <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800 font-medium">
+                    {success}
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -258,13 +327,18 @@ export default function RegisterPage() {
                       name="password"
                       type="password"
                       placeholder="Create a password"
-                      className="pl-10"
+                      className={`pl-10 ${!isPasswordValid(formData.password) && formData.password 
+                        ? 'border-red-500 focus-visible:ring-red-500' 
+                        : ''}`}
+
                       value={formData.password}
                       onChange={handleChange}
                       required
                     />
                   </div>
-                  <p className="text-xs text-gray-500">Password must be at least 8 characters long</p>
+                  {formData.password && !isPasswordValid(formData.password) && (
+                    <p className="text-xs text-red-500">Password must be at least 8 characters long</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -276,15 +350,28 @@ export default function RegisterPage() {
                       name="confirmPassword"
                       type="password"
                       placeholder="Confirm your password"
-                      className="pl-10"
+                      className={`pl-10 ${!doPasswordsMatch(formData.password, formData.confirmPassword) 
+                        && formData.confirmPassword 
+                        ? 'border-red-500 focus-visible:ring-red-500' 
+                        : ''}`}
+
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       required
                     />
                   </div>
+                  {formData.confirmPassword && !doPasswordsMatch(formData.password, formData.confirmPassword) && (
+                    <p className="text-xs text-red-500">Passwords do not match</p>
+                  )}
                 </div>
 
-                <Button type="submit" className="w-full bg-[#006400] hover:bg-[#005000]" disabled={isLoading}>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-[#006400] hover:bg-[#005000]" 
+                  disabled={isLoading || 
+                    !isPasswordValid(formData.password) || 
+                    !doPasswordsMatch(formData.password, formData.confirmPassword)}
+                >
                   {isLoading ? "Registering..." : "Register"}
                 </Button>
               </form>

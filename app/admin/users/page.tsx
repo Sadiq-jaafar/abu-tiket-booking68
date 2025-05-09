@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
 import {
   ArrowUpDown,
   ChevronLeft,
@@ -33,79 +34,17 @@ import { Badge } from "@/components/ui/badge"
 // Mock user data
 interface User {
   id: string
-  name: string
+  first_name: string
+  last_name: string
   email: string
-  role: "student" | "staff" | "driver" | "admin"
-  status: "active" | "inactive" | "suspended"
-  registeredDate: string
-  lastLogin: string
+  role: "passenger" | "admin" | "driver"
+  phone_number: string
+  id_type: string
+  id_number: string
+  created_at: string
 }
 
-const mockUsers: User[] = [
-  {
-    id: "USR-1001",
-    name: "Ibrahim Mohammed",
-    email: "ibrahim.m@abu.edu.ng",
-    role: "student",
-    status: "active",
-    registeredDate: "2025-01-15",
-    lastLogin: "2025-04-10",
-  },
-  {
-    id: "USR-1002",
-    name: "Fatima Ahmed",
-    email: "fatima.a@abu.edu.ng",
-    role: "student",
-    status: "active",
-    registeredDate: "2025-01-20",
-    lastLogin: "2025-04-09",
-  },
-  {
-    id: "USR-1003",
-    name: "John Okafor",
-    email: "john.o@abu.edu.ng",
-    role: "staff",
-    status: "active",
-    registeredDate: "2024-11-05",
-    lastLogin: "2025-04-08",
-  },
-  {
-    id: "USR-1004",
-    name: "Sarah James",
-    email: "sarah.j@abu.edu.ng",
-    role: "driver",
-    status: "active",
-    registeredDate: "2024-12-01",
-    lastLogin: "2025-04-10",
-  },
-  {
-    id: "USR-1005",
-    name: "Mohammed Ibrahim",
-    email: "mohammed.i@abu.edu.ng",
-    role: "admin",
-    status: "active",
-    registeredDate: "2024-10-10",
-    lastLogin: "2025-04-10",
-  },
-  {
-    id: "USR-1006",
-    name: "Amina Yusuf",
-    email: "amina.y@abu.edu.ng",
-    role: "student",
-    status: "suspended",
-    registeredDate: "2025-02-15",
-    lastLogin: "2025-03-20",
-  },
-  {
-    id: "USR-1007",
-    name: "David Adebayo",
-    email: "david.a@abu.edu.ng",
-    role: "staff",
-    status: "inactive",
-    registeredDate: "2024-09-10",
-    lastLogin: "2025-01-15",
-  },
-]
+
 
 export default function AdminUsersPage() {
   const router = useRouter()
@@ -114,7 +53,6 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [showAddUserDialog, setShowAddUserDialog] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
@@ -123,29 +61,37 @@ export default function AdminUsersPage() {
   const itemsPerPage = 10
 
   useEffect(() => {
-    // Check if admin is authenticated
-    const isAuthenticated = localStorage.getItem("adminAuthenticated") === "true"
-    if (!isAuthenticated) {
-      router.push("/admin/login")
-      return
-    }
-
-    // Simulate API call to fetch users
-    const fetchUsers = async () => {
-      try {
-        // In a real app, this would be an API call
-        await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate network delay
-        setUsers(mockUsers)
-        setFilteredUsers(mockUsers)
-      } catch (error) {
-        console.error("Error fetching users:", error)
-      } finally {
-        setIsLoading(false)
+    const checkAuthAndFetchUsers = async () => {
+      const isAuthenticated = localStorage.getItem("adminAuthenticated") === "true"
+      if (!isAuthenticated) {
+        router.push("/admin/login")
+        return
       }
+
+      await fetchUsers()
     }
 
-    fetchUsers()
+    checkAuthAndFetchUsers()
   }, [router])
+
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true)
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+
+      if (error) throw error
+      if (data) {
+        setUsers(data)
+        setFilteredUsers(data)
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Apply filters
   useEffect(() => {
@@ -154,42 +100,49 @@ export default function AdminUsersPage() {
     // Apply search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
-      result = result.filter(
-        (user) =>
-          user.id.toLowerCase().includes(term) ||
-          user.name.toLowerCase().includes(term) ||
-          user.email.toLowerCase().includes(term),
+      result = result.filter(user =>
+        user.id.toLowerCase().includes(term) ||
+        user.first_name.toLowerCase().includes(term) ||
+        user.last_name.toLowerCase().includes(term) ||
+        user.email.toLowerCase().includes(term)
       )
     }
 
     // Apply role filter
     if (roleFilter !== "all") {
-      result = result.filter((user) => user.role === roleFilter)
-    }
-
-    // Apply status filter
-    if (statusFilter !== "all") {
-      result = result.filter((user) => user.status === statusFilter)
+      result = result.filter(user => user.role === roleFilter)
     }
 
     setFilteredUsers(result)
     setCurrentPage(1)
-  }, [searchTerm, roleFilter, statusFilter, users])
+  }, [searchTerm, roleFilter, users])
 
   // Pagination
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
-  const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
-  // Handle user deletion
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (!selectedUser) return
 
-    // In a real app, this would make an API call to delete the user
-    const updatedUsers = users.filter((user) => user.id !== selectedUser.id)
-    setUsers(updatedUsers)
-    setShowDeleteDialog(false)
-    setSelectedUser(null)
+    try {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', selectedUser.id)
+
+      if (error) throw error
+      setUsers(prev => prev.filter(user => user.id !== selectedUser.id))
+    } catch (error) {
+      console.error("Error deleting user:", error)
+    } finally {
+      setShowDeleteDialog(false)
+      setSelectedUser(null)
+    }
   }
+
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -204,7 +157,7 @@ export default function AdminUsersPage() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <CardTitle>All Users</CardTitle>
-                  <CardDescription>View and manage all users in the system</CardDescription>
+                  <CardDescription>View and manage all system users</CardDescription>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <div className="relative">
@@ -224,22 +177,9 @@ export default function AdminUsersPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Roles</SelectItem>
-                        <SelectItem value="student">Student</SelectItem>
-                        <SelectItem value="staff">Staff</SelectItem>
-                        <SelectItem value="driver">Driver</SelectItem>
+                        <SelectItem value="passenger">Passenger</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-[130px]">
-                        <Filter className="h-4 w-4 mr-2" />
-                        <span>Status</span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Statuses</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                        <SelectItem value="suspended">Suspended</SelectItem>
+                        <SelectItem value="driver">Driver</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button onClick={() => setShowAddUserDialog(true)}>
@@ -250,6 +190,7 @@ export default function AdminUsersPage() {
                 </div>
               </div>
             </CardHeader>
+
             <CardContent>
               {isLoading ? (
                 <div className="text-center py-8">Loading users...</div>
@@ -274,7 +215,6 @@ export default function AdminUsersPage() {
                           <th className="text-left py-3 px-4 font-medium text-sm">Name</th>
                           <th className="text-left py-3 px-4 font-medium text-sm">Email</th>
                           <th className="text-left py-3 px-4 font-medium text-sm">Role</th>
-                          <th className="text-left py-3 px-4 font-medium text-sm">Status</th>
                           <th className="text-left py-3 px-4 font-medium text-sm">
                             <div className="flex items-center">
                               Registered
@@ -288,7 +228,7 @@ export default function AdminUsersPage() {
                         {paginatedUsers.map((user) => (
                           <tr key={user.id} className="border-b hover:bg-gray-50">
                             <td className="py-3 px-4 font-medium">{user.id}</td>
-                            <td className="py-3 px-4">{user.name}</td>
+                            <td className="py-3 px-4">{`${user.first_name} ${user.last_name}`}</td>
                             <td className="py-3 px-4">{user.email}</td>
                             <td className="py-3 px-4">
                               <Badge
@@ -297,38 +237,22 @@ export default function AdminUsersPage() {
                                     ? "bg-purple-100 text-purple-800 hover:bg-purple-100"
                                     : user.role === "driver"
                                       ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
-                                      : user.role === "staff"
-                                        ? "bg-amber-100 text-amber-800 hover:bg-amber-100"
-                                        : "bg-green-100 text-green-800 hover:bg-green-100"
+                                      : "bg-green-100 text-green-800 hover:bg-green-100"
                                 }
                               >
                                 {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                               </Badge>
                             </td>
                             <td className="py-3 px-4">
-                              <Badge
-                                className={
-                                  user.status === "active"
-                                    ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                    : user.status === "inactive"
-                                      ? "bg-gray-100 text-gray-800 hover:bg-gray-100"
-                                      : "bg-red-100 text-red-800 hover:bg-red-100"
-                                }
-                              >
-                                {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                              </Badge>
+                              {new Date(user.created_at).toLocaleDateString()}
                             </td>
-                            <td className="py-3 px-4">{new Date(user.registeredDate).toLocaleDateString()}</td>
                             <td className="py-3 px-4 text-right">
                               <div className="flex justify-end gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="h-8 w-8 p-0"
-                                  onClick={() => {
-                                    // In a real app, this would navigate to a user edit page
-                                    console.log("Edit user:", user)
-                                  }}
+                                  onClick={() => {/* Implement edit functionality */}}
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
@@ -350,6 +274,7 @@ export default function AdminUsersPage() {
                       </tbody>
                     </table>
                   </div>
+
 
                   {/* Pagination */}
                   {totalPages > 1 && (
@@ -419,7 +344,7 @@ export default function AdminUsersPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Name:</span>
-                    <span>{selectedUser.name}</span>
+                    <span>{`${selectedUser.first_name} ${selectedUser.last_name}`}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Email:</span>
@@ -445,56 +370,59 @@ export default function AdminUsersPage() {
 
         {/* Add User Dialog */}
         <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
-              <DialogDescription>Enter the details for the new user.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="name" className="text-right">
-                  Name
-                </label>
-                <Input id="name" placeholder="Full Name" className="col-span-3" />
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New User</DialogTitle>
+                <DialogDescription>Enter user details</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="firstName" className="text-right">
+                    First Name
+                  </label>
+                  <Input id="firstName" className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="lastName" className="text-right">
+                    Last Name
+                  </label>
+                  <Input id="lastName" className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="email" className="text-right">
+                    Email
+                  </label>
+                  <Input id="email" type="email" className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="role" className="text-right">
+                    Role
+                  </label>
+                  <Select>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="passenger">Passenger</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="driver">Driver</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="email" className="text-right">
-                  Email
-                </label>
-                <Input id="email" type="email" placeholder="Email Address" className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="role" className="text-right">
-                  Role
-                </label>
-                <Select defaultValue="student">
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="driver">Driver</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  // In a real app, this would make an API call to add the user
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={async () => {
+                  // Implement Supabase insert here
                   setShowAddUserDialog(false)
-                }}
-              >
-                Add User
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                }}>
+                  Add User
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
       </div>
     </div>
   )

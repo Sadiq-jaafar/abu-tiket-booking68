@@ -138,6 +138,33 @@ export default function Home() {
     // Navigate to search results with query parameters
     router.push(`/search-results?${queryParams.toString()}`)
   }
+  const handlePopularRouteClick = (from: string, to: string) => {
+    const queryParams = new URLSearchParams()
+    
+    // Set basic parameters
+    queryParams.append("from", from)
+    queryParams.append("to", to)
+    queryParams.append("premium", isPremium.toString())
+    
+    // Set date
+    if (date) {
+      queryParams.append("date", date.toISOString().split('T')[0])
+    }
+    
+    // Set default time based on premium status
+    queryParams.append("time", isPremium ? "anytime" : "morning")
+    
+    // Set default passengers
+    queryParams.append("passengers", "1")
+  
+    // Add premium-specific parameters if applicable
+    if (isPremium) {
+      queryParams.append("shuttleType", "executive") // Default premium shuttle type
+    }
+  
+    router.push(`/search-results?${queryParams.toString()}`)
+  }
+  
 
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
@@ -566,74 +593,43 @@ export default function Home() {
 
         {/* Popular Routes section */}
         <section className="max-w-4xl mx-auto mb-12">
-          <h3 className="mb-6 text-xl font-semibold text-[#006400]">Popular Routes</h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {isLoadingRoutes
-              ? // Loading state
-                Array(6)
-                  .fill(0)
-                  .map((_, index) => (
-                    <Card key={index} className="overflow-hidden border-[#006400] border-l-2">
-                      <CardHeader className="p-0">
-                        <div className="h-40 bg-gray-200 animate-pulse"></div>
-                      </CardHeader>
-                      <CardContent className="p-4">
-                        <div className="h-5 bg-gray-200 rounded animate-pulse mb-2"></div>
-                        <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
-                      </CardContent>
-                      <CardFooter className="p-4 pt-0">
-                        <div className="h-9 bg-gray-200 rounded animate-pulse w-full"></div>
-                      </CardFooter>
-                    </Card>
-                  ))
-              : // Display routes from database or fallback to popular routes
-                (availableRoutes.length > 0 ? availableRoutes : popularRoutes).map((route, index) => (
-                  <Card key={index} className="overflow-hidden border-[#006400] border-l-2">
-                    <CardHeader className="p-0">
-                      <div className="h-40 bg-gray-200">
-                        <img
-                          src={`/placeholder.svg?height=160&width=320&text=${route.from || route.origin}-${route.to || route.destination}`}
-                          alt={`${route.from || route.origin} to ${route.to || route.destination}`}
-                          className="object-cover w-full h-full"
-                        />
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4">
-                      <CardTitle className="text-lg">
-                        {route.from || route.origin} to {route.to || route.destination}
-                      </CardTitle>
-                      <CardDescription>₦{route.price} per person</CardDescription>
-                      {route.premium_available && (
-                        <Badge className="mt-2 bg-amber-500">
-                          <StarIcon className="w-3 h-3 mr-1" /> Premium Available
-                        </Badge>
-                      )}
-                    </CardContent>
-                    <CardFooter className="p-4 pt-0">
-                      <Button
-                        variant="outline"
-                        className="w-full border-[#006400] text-[#006400] hover:bg-[#e6f2e6]"
-                        onClick={() => {
-                          // Pre-fill search form with this route
-                          setFormData((prev) => ({
-                            ...prev,
-                            from: route.from || route.origin || "",
-                            to: route.to || route.destination || "",
-                            fromCampus: route.from || route.origin || "",
-                            toCampus: route.to || route.destination || "",
-                          }))
-
-                          // Scroll to search form
-                          window.scrollTo({ top: 0, behavior: "smooth" })
-                        }}
-                      >
-                        View Schedule
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
+  <h3 className="mb-6 text-xl font-semibold text-[#006400]">Popular Routes</h3>
+  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    {popularRoutes.map((route, index) => (
+      <Card key={index} className="overflow-hidden border-[#006400] border-l-2">
+        <CardHeader className="p-0">
+          <div className="h-40 bg-gray-200">
+            <img
+              src={`/placeholder.svg?height=160&width=320&text=${route.from}-${route.to}`}
+              alt={`${route.from} to ${route.to}`}
+              className="object-cover w-full h-full"
+            />
           </div>
-        </section>
+        </CardHeader>
+        <CardContent className="p-4">
+          <CardTitle className="text-lg">
+            {route.from} to {route.to}
+          </CardTitle>
+          <CardDescription>₦{route.price} per person</CardDescription>
+          {route.premiumAvailable && (
+            <Badge className="mt-2 bg-amber-500">
+              <StarIcon className="w-3 h-3 mr-1" /> Premium Available
+            </Badge>
+          )}
+        </CardContent>
+        <CardFooter className="p-4 pt-0">
+          <Button 
+            variant="outline" 
+            className="w-full border-[#006400] text-[#006400] hover:bg-[#e6f2e6]"
+            onClick={() => handlePopularRouteClick(route.from, route.to)}
+          >
+            View Schedule
+          </Button>
+        </CardFooter>
+      </Card>
+    ))}
+  </div>
+</section>
 
         {/* Why Choose ABU Tiket section */}
         <section className="max-w-4xl mx-auto">
@@ -756,10 +752,10 @@ export default function Home() {
 }
 
 const popularRoutes = [
-  { from: "Main Campus", to: "Kongo Campus", price: 150, premiumAvailable: true },
+  { from: "Main Campus", to: "Kongo Campus", price: 200, premiumAvailable: true },
   { from: "Samaru", to: "Main Campus", price: 100, premiumAvailable: true },
-  { from: "Main Campus", to: "Shika", price: 200, premiumAvailable: true },
-  { from: "Kongo Campus", to: "Samaru", price: 150, premiumAvailable: false },
-  { from: "Main Campus", to: "Teaching Hospital", price: 250, premiumAvailable: true },
-  { from: "Samaru", to: "Shika", price: 200, premiumAvailable: false },
+  { from: "Main Campus", to: "Shika", price: 250, premiumAvailable: true },
+  { from: "Kongo Campus", to: "Samaru", price: 200, premiumAvailable: false },
+  { from: "Main Campus", to: "Teaching Hospital", price: 200, premiumAvailable: true },
+  { from: "Samaru", to: "Shika", price: 250, premiumAvailable: false },
 ]

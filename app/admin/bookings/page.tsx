@@ -81,10 +81,10 @@ export default function AdminBookingsPage() {
       const term = searchTerm.toLowerCase()
       result = result.filter(
         (booking) =>
-          booking.bookingId.toLowerCase().includes(term) ||
-          booking.passengers.some((p) => p.name.toLowerCase().includes(term)) ||
-          booking.departureLocation.toLowerCase().includes(term) ||
-          booking.arrivalLocation.toLowerCase().includes(term),
+          booking.booking_id.toLowerCase().includes(term) ||
+          booking.passengers?.some((p) => (p.first_name+" "+p.last_name).toLowerCase().includes(term)) ||
+          booking.pickup_address.toLowerCase().includes(term) ||
+          booking.dropoff_address.toLowerCase().includes(term),
       )
     }
 
@@ -104,7 +104,7 @@ export default function AdminBookingsPage() {
       nextMonth.setMonth(nextMonth.getMonth() + 1)
 
       result = result.filter((booking) => {
-        const bookingDate = new Date(booking.departureDate)
+        const bookingDate = new Date(booking.departure_date)
         switch (dateFilter) {
           case "today":
             return (
@@ -142,7 +142,7 @@ export default function AdminBookingsPage() {
 
     // In a real app, this would make an API call to cancel the booking
     const updatedBookings = bookings.map((booking) =>
-      booking.bookingId === selectedBooking.bookingId ? { ...booking, status: "cancelled" } : booking,
+      booking.booking_id === selectedBooking.booking_id ? { ...booking, status: "cancelled" as const } : booking,
     )
 
     setBookings(updatedBookings)
@@ -241,31 +241,31 @@ export default function AdminBookingsPage() {
                       </thead>
                       <tbody>
                         {paginatedBookings.map((booking) => (
-                          <tr key={booking.bookingId} className="border-b hover:bg-gray-50">
-                            <td className="py-3 px-4 font-medium">{booking.bookingId}</td>
+                          <tr key={booking.booking_id} className="border-b hover:bg-gray-50">
+                            <td className="py-3 px-4 font-medium">{booking.booking_id}</td>
                             <td className="py-3 px-4">
                               <div>
-                                <div>{booking.passengers[0].name}</div>
+                                <div>{booking.passengers?.[0]?.first_name + ' ' + booking.passengers?.[0]?.last_name || 'N/A'} </div>
                                 <div className="text-xs text-gray-500">
-                                  {booking.passengers.length > 1 ? `+${booking.passengers.length - 1} more` : ""}
+                                  {booking.passengers && booking.passengers.length > 1 ? `+${booking.passengers.length - 1} more` : ""}
                                 </div>
                               </div>
                             </td>
                             <td className="py-3 px-4">
                               <div className="max-w-[200px] truncate">
-                                {booking.departureLocation} → {booking.arrivalLocation}
+                                {booking.pickup_address} → {booking.dropoff_address}
                               </div>
                             </td>
                             <td className="py-3 px-4">
                               <div>
-                                <div>{new Date(booking.departureDate).toLocaleDateString()}</div>
-                                <div className="text-xs text-gray-500">{booking.departureTime}</div>
+                                <div>{new Date(booking.departure_date).toLocaleDateString()}</div>
+                                <div className="text-xs text-gray-500">{booking.departure_time}</div>
                               </div>
                             </td>
                             <td className="py-3 px-4">
                               <div>
-                                <div>₦{booking.totalAmount}</div>
-                                {booking.isPremium && <Badge className="mt-1 bg-amber-500">Premium</Badge>}
+                                <div>₦{booking.total_amount}</div>
+                                {booking.is_premium && <Badge className="mt-1 bg-amber-500">Premium</Badge>}
                               </div>
                             </td>
                             <td className="py-3 px-4">
@@ -382,19 +382,19 @@ export default function AdminBookingsPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="font-medium">Booking ID:</span>
-                    <span>{selectedBooking.bookingId}</span>
+                    <span>{selectedBooking.booking_id}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Passenger:</span>
-                    <span>{selectedBooking.passengers[0].name}</span>
+                    <span>{selectedBooking.passengers?.[0]?.first_name + " " + selectedBooking.passengers?.[0]?.last_name || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Date:</span>
-                    <span>{new Date(selectedBooking.departureDate).toLocaleDateString()}</span>
+                    <span>{new Date(selectedBooking.departure_date).toLocaleDateString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Amount:</span>
-                    <span>₦{selectedBooking.totalAmount}</span>
+                    <span>₦{selectedBooking.total_amount}</span>
                   </div>
                 </div>
               </div>

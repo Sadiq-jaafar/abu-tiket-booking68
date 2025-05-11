@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SiteHeader } from "@/components/site-header"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { signUp } from "@/lib/auth"
+import { SiteFooter } from "@/components/site-footer"
 
 type RegistrationError = {
   message: string;
@@ -387,7 +388,8 @@ export default function RegisterPage() {
           </Card>
         </div>
       </main>
-
+      <SiteFooter/>
+{/* 
       <footer className="py-8 mt-12 bg-[#006400] text-white">
         <div className="container px-4 mx-auto">
           <div className="grid gap-8 md:grid-cols-4">
@@ -462,7 +464,7 @@ export default function RegisterPage() {
             © {new Date().getFullYear()} Ahmadu Bello University, Zaria. All rights reserved.
           </div>
         </div>
-      </footer>
+      </footer> */}
     </div>
   )
 }

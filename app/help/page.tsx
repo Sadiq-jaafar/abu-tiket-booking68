@@ -152,7 +152,7 @@ const popularTopics = [
   {
     title: "Booking a Shuttle",
     description: "Learn how to search for and book a shuttle for your campus transportation needs.",
-    link: "/new-booking",
+    link: "/search-results",
   },
   {
     title: "Premium Service",

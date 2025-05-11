@@ -12,116 +12,48 @@ export function AdminSidebar() {
   }
 
   const handleLogout = () => {
-    // Clear admin authentication
     localStorage.removeItem("adminAuthenticated")
-    // Redirect to login page
-    window.location.href = "/admin/login"
+    window.location.href = "/login"
   }
 
   return (
-    <aside className="bg-gray-900 text-white w-64 min-h-screen flex flex-col">
-      <div className="p-4 border-b border-gray-800">
+    <aside className="bg-[#006400] text-white w-64 min-h-screen flex flex-col">
+      <div className="p-4 border-b border-green-700">
         <h2 className="text-xl font-bold">Abu Tiket Admin</h2>
       </div>
 
       <nav className="flex-1 p-4">
         <ul className="space-y-1">
-          <li>
-            <Link
-              href="/admin/dashboard"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive("/admin/dashboard")
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-400 hover:text-white hover:bg-gray-800"
-              }`}
-            >
-              <LayoutDashboard size={18} />
-              <span>Dashboard</span>
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/admin/bookings"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive("/admin/bookings")
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-400 hover:text-white hover:bg-gray-800"
-              }`}
-            >
-              <Calendar size={18} />
-              <span>Bookings</span>
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/admin/shuttles"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive("/admin/shuttles")
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-400 hover:text-white hover:bg-gray-800"
-              }`}
-            >
-              <Bus size={18} />
-              <span>Shuttles</span>
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/admin/drivers"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive("/admin/drivers")
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-400 hover:text-white hover:bg-gray-800"
-              }`}
-            >
-              <User size={18} />
-              <span>Drivers</span>
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/admin/users"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive("/admin/users") ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"
-              }`}
-            >
-              <Users size={18} />
-              <span>Users</span>
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/admin/scanner"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive("/admin/scanner")
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-400 hover:text-white hover:bg-gray-800"
-              }`}
-            >
-              <QrCode size={18} />
-              <span>Ticket Scanner</span>
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/admin/settings"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive("/admin/settings")
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-400 hover:text-white hover:bg-gray-800"
-              }`}
-            >
-              <Settings size={18} />
-              <span>Settings</span>
-            </Link>
-          </li>
+          {[
+            { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+            { href: "/admin/bookings", icon: Calendar, label: "Bookings" },
+            { href: "/admin/shuttles", icon: Bus, label: "Shuttles" },
+            { href: "/admin/drivers", icon: User, label: "Drivers" },
+            { href: "/admin/users", icon: Users, label: "Users" },
+            { href: "/admin/scanner", icon: QrCode, label: "Ticket Scanner" },
+            { href: "/admin/settings", icon: Settings, label: "Settings" },
+          ].map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  isActive(item.href)
+                    ? "bg-green-700 text-white"
+                    : "text-green-100 hover:text-white hover:bg-green-700"
+                }`}
+              >
+                <item.icon size={18} />
+                <span>{item.label}</span>
+              </Link>
+            </li>
+          ))}
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-gray-800">
+      <div className="p-4 border-t border-green-700">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-400 hover:text-white hover:bg-gray-800 w-full"
+          className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-green-100 hover:text-white hover:bg-green-700 w-full"
         >
           <LogOut size={18} />
           <span>Logout</span>

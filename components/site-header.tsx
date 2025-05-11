@@ -93,7 +93,7 @@ export function SiteHeader({
                 My Bookings
               </Link>
             )}
-            <Link href="#" className="text-sm font-medium text-white hover:text-green-200">
+            <Link href="/help" className="text-sm font-medium text-white hover:text-green-200">
               Help
             </Link>
           </nav>
@@ -163,7 +163,7 @@ export function SiteHeader({
                         Profile
                       </Link>
                       <Link
-                        href="#"
+                        href="/settings"
                         className="flex items-center px-2 py-2 text-white hover:bg-green-700 rounded-md"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
@@ -172,7 +172,7 @@ export function SiteHeader({
                     </>
                   )}
                   <Link
-                    href="#"
+                    href="/help"
                     className="flex items-center px-2 py-2 text-white hover:bg-green-700 rounded-md"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >

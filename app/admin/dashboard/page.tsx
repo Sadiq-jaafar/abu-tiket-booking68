@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminHeader } from "@/components/admin-header"
 import { getBookings } from "@/lib/actions"
 import type { Booking } from "@/lib/definitions"
+import { SiteFooter } from "@/components/site-footer"
 
 export default function AdminDashboardPage() {
   const router = useRouter()
@@ -60,6 +61,7 @@ export default function AdminDashboardPage() {
   const premiumBookings = bookings.filter((booking) => booking.is_premium).length
 
   return (
+    <div className="m-0 p-0">
     <div className="flex min-h-screen bg-gray-100">
       {/* Sidebar */}
       <div className="hidden md:flex flex-col w-64 bg-[#006400] text-white">
@@ -409,6 +411,13 @@ export default function AdminDashboardPage() {
           </div>
         </main>
       </div>
+      
     </div>
+    <div className="m-0 p-0">
+    <SiteFooter/>
+    </div>
+    
+    </div>
+    
   )
 }

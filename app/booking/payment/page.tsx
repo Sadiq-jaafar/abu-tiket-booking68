@@ -18,7 +18,7 @@ import { getShuttles, getRoutes, } from "@/lib/actions"
 import { createBooking } from "@/lib/createBooking"
 import type { Passenger, ContactInfo } from "@/lib/definitions"
 import { createPassengers, createContactInfo } from "@/lib/passenerAction";
-
+import { supabase } from "@/lib/supabase"
 export default function BookingPaymentPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -70,6 +70,12 @@ export default function BookingPaymentPage() {
   const [isContactFormValid, setIsContactFormValid] = useState(false)
   const [activeTab, setActiveTab] = useState("passengers")
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Add this state for prices at the top with other state declarations
+  const [prices, setPrices] = useState({
+    base_price: 0,
+    premium_price: 0
+  })
 
   // Check authentication on page load
   useEffect(() => {
@@ -139,7 +145,48 @@ export default function BookingPaymentPage() {
     }
   }
   
-  
+  // Add this function after other helper functions
+  const fetchRoutePrices = async (shuttleId: string) => {
+    try {
+      const { data: route, error } = await supabase
+        .from('routes')
+        .select('base_price, premium_price')
+        .eq('shuttle_id', shuttleId)
+        .single()
+
+      if (error) throw error
+
+      return {
+        base_price: route?.base_price || 0,
+        premium_price: route?.premium_price || 0
+      }
+    } catch (error) {
+      console.error('Error fetching route prices:', error)
+      return { base_price: 0, premium_price: 0 }
+    }
+  }
+
+  // Update the useEffect to handle null shuttle
+  useEffect(() => {
+    const loadPrices = async () => {
+      if (shuttle?.shuttle_id) {
+        const routePrices = await fetchRoutePrices(shuttle.shuttle_id)
+        setPrices(routePrices)
+      }
+    }
+    
+    loadPrices()
+  }, [shuttle]) // Only depend on shuttle object
+
+  // Update the price calculation function
+  const calculateTotalPrice = () => {
+    const basePrice = isPremium ? prices.premium_price : prices.base_price
+    const subtotal = basePrice * passengerCount
+    const serviceFee = 50
+    const tax = Math.round(subtotal * 0.05)
+
+    return subtotal + serviceFee + tax
+  }
 
   
   
@@ -179,18 +226,6 @@ export default function BookingPaymentPage() {
     setIsContactFormValid(isValid)
   }
 
-  // Calculate total price
-  const calculateTotalPrice = () => {
-    if (!route) return 0
-
-    const basePrice = isPremium ? route.premium_price || route.price * 1.5 : route.price
-    const subtotal = basePrice * passengerCount
-    const serviceFee = 50
-    const tax = Math.round(subtotal * 0.05)
-
-    return subtotal + serviceFee + tax
-  }
-
   // Handle form submission
   const handleSubmit = async () => {
     if (!isPassengerFormValid || !isContactFormValid) {
@@ -205,34 +240,36 @@ export default function BookingPaymentPage() {
     if (!userId) {
       toast({
         title: "Authentication Error",
-        description: "You must be logged in to complete this booking.",
+        description: "Please log in to complete your booking.",
         variant: "destructive",
-      })
-      const currentUrl = window.location.pathname + window.location.search
-      router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`)
-      return
+      });
+      const currentUrl = window.location.pathname + window.location.search;
+      router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`);
+      return;
     }
 
     setIsSubmitting(true)
 
     try {
+      const totalAmount = await calculateTotalPrice();
       // Create booking data
       const bookingData = {
-        user_id: userId,
+        booking_id: '', // Will be generated
+        user_id: userId, // Make sure this is not null
         shuttle_id: shuttle.shuttle_id,
         route_id: route.id,
         departure_date: date,
         departure_time: shuttle.departure_time || "08:00:00",
         arrival_time: shuttle.arrival_time || "10:00:00",
         booking_date: new Date().toISOString(),
-        status: "upcoming" as "upcoming", // Explicitly type as a valid literal
+        status: "upcoming" as "upcoming",
         is_premium: isPremium,
-        price: route.price,
-        total_amount: calculateTotalPrice(),
+        price: isPremium ? route.premium_price : route.base_price,
+        total_amount: totalAmount,
         pickup_address: route.origin || "Main Campus",
         dropoff_address: route.destination || "Kongo Campus",
         check_in_status: "pending" as "pending",
-        
+        refund_status: "NOT REFUNDED" as "NOT REFUNDED" | "REFUNDED"
       }
 
       // Create booking
@@ -244,6 +281,10 @@ export default function BookingPaymentPage() {
       // Create passengers and contact info in parallel
     
       // Step 2: Prepare and create passengers
+    if (!booking) {
+      throw new Error("Failed to create booking");
+    }
+
     const passengersWithIds = passengers.map(p => ({
       ...p,
       booking_id: booking.booking_id,
@@ -252,7 +293,6 @@ export default function BookingPaymentPage() {
     
     const passengersResult = await createPassengers(passengersWithIds);
     if (passengersResult.error) throw new Error(passengersResult.error);
-
     // Step 3: Prepare and create contact info
     const contactInfoWithId = {
       ...contactInfo,

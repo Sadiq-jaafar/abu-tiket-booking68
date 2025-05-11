@@ -118,20 +118,30 @@
 //       return null
 //     }
 
-//     const { data, error } = await supabase
+//     console.log(`Fetching booking with ID: ${bookingId}`)
+
+//     // First, get the booking details
+//     const { data: bookingData, error: bookingError } = await supabase
 //       .from("bookings")
 //       .select(`
 //         *,
 //         shuttle:shuttles(*),
-//         route:routes(*),
-//         contactInfo:contact_info(*)
+//         route:routes(*)
 //       `)
 //       .eq("booking_id", bookingId)
 //       .single()
 
-//     if (error) {
-//       throw error
+//     if (bookingError) {
+//       console.error("Error fetching booking:", bookingError)
+//       throw bookingError
 //     }
+
+//     if (!bookingData) {
+//       console.log("No booking found with ID:", bookingId)
+//       return null
+//     }
+
+//     console.log("Booking data retrieved:", bookingData)
 
 //     // Fetch passengers for this booking
 //     const { data: passengers, error: passengersError } = await supabase
@@ -141,10 +151,34 @@
 
 //     if (passengersError) {
 //       console.error("Error fetching passengers:", passengersError)
-//       return { ...data, passengers: [] }
+//       // Continue with empty passengers array
 //     }
 
-//     return { ...data, passengers }
+//     console.log("Passengers retrieved:", passengers || [])
+
+//     // Fetch contact info for this booking
+//     const { data: contactInfo, error: contactInfoError } = await supabase
+//       .from("contact_info")
+//       .select("*")
+//       .eq("booking_id", bookingId)
+//       .single()
+
+//     if (contactInfoError && contactInfoError.code !== "PGRST116") {
+//       // PGRST116 is "no rows returned"
+//       console.error("Error fetching contact info:", contactInfoError)
+//       // Continue with null contact info
+//     }
+
+//     console.log("Contact info retrieved:", contactInfo || {})
+
+//     // Combine all data
+//     const completeBooking = {
+//       ...bookingData,
+//       passengers: passengers || [],
+//       contactInfo: contactInfo || null,
+//     }
+
+//     return completeBooking
 //   } catch (error) {
 //     console.error("Error in getBookingById:", error)
 //     const { error: errorMessage } = handleSupabaseError(error)
@@ -161,6 +195,12 @@
 //   try {
 //     // Generate a booking ID
 //     const bookingId = `ABU-${Math.floor(10000000 + Math.random() * 90000000)}`
+
+//     // Log the booking data for debugging
+//     console.log("Creating booking with data:", {
+//       ...bookingData,
+//       booking_id: bookingId,
+//     })
 
 //     // Start a transaction
 //     const { data: booking, error: bookingError } = await supabase
@@ -188,8 +228,11 @@
 //       .single()
 
 //     if (bookingError) {
+//       console.error("Error creating booking:", bookingError)
 //       throw bookingError
 //     }
+
+//     console.log("Booking created successfully:", booking)
 
 //     // Insert contact info
 //     const { error: contactError } = await supabase.from("contact_info").insert([
@@ -197,25 +240,39 @@
 //         booking_id: bookingId,
 //         email: contactInfo.email,
 //         phone: contactInfo.phone,
-//         special_request: contactInfo.special_request || "",
+//         special_request: contactInfo.special_requests || "",
 //       },
 //     ])
 
 //     if (contactError) {
+//       console.error("Error creating contact info:", contactError)
 //       throw contactError
 //     }
 
-//     // Insert passengers
-//     const passengersWithBookingId = passengers.map((passenger) => ({
-//       ...passenger,
-//       booking_id: bookingId,
-//     }))
+//     console.log("Contact info created successfully")
 
-//     const { error: passengersError } = await supabase.from("passengers").insert(passengersWithBookingId)
+//     // Process passengers data
+//     const processedPassengers = passengers.map((passenger) => {
+//       // Combine first_name and last_name into name if needed
+//       const name = `${passenger.first_name} ${passenger.last_name}`.trim()
+
+//       return {
+//         name,
+//         id_type: passenger.id_type,
+//         id_number: passenger.id_number,
+//         booking_id: bookingId,
+//       }
+//     })
+
+//     // Insert passengers
+//     const { error: passengersError } = await supabase.from("passengers").insert(processedPassengers)
 
 //     if (passengersError) {
+//       console.error("Error creating passengers:", passengersError)
 //       throw passengersError
 //     }
+
+//     console.log("Passengers created successfully")
 
 //     // Return the created booking
 //     return {
@@ -226,7 +283,7 @@
 //       },
 //       error: null,
 //     }
-//   } catch (error) {
+//   } catch (error: any) {
 //     console.error("Error in createBooking:", error)
 //     const { error: errorMessage } = handleSupabaseError(error)
 //     return { booking: {} as Booking, error: errorMessage }
@@ -309,28 +366,99 @@
 //   try {
 //     // If offline, try to get from local storage
 //     if (!isOnline()) {
+//       console.log("Device is offline, using cached routes")
 //       const cachedRoutes = localStorage.getItem("cachedRoutes")
 //       if (cachedRoutes) {
 //         return JSON.parse(cachedRoutes)
 //       }
-//       return []
+//       console.log("No cached routes found, using fallback routes")
+//       return getFallbackRoutes()
 //     }
 
-//     const { data, error } = await supabase.from("routes").select("*")
+//     // Add timeout to the fetch request
+//     const timeoutPromise = new Promise<{ data: null; error: Error }>((_, reject) =>
+//       setTimeout(() => reject(new Error("Request timed out")), 5000),
+//     )
+
+//     const fetchPromise = supabase.from("routes").select("*")
+
+//     // Race between fetch and timeout
+//     const { data, error } = (await Promise.race([fetchPromise, timeoutPromise])) as any
 
 //     if (error) {
+//       console.warn("Error fetching routes from Supabase:", error)
 //       throw error
 //     }
 
+//     if (!data || !Array.isArray(data)) {
+//       console.warn("Invalid data returned from routes query:", data)
+//       throw new Error("Invalid data returned from server")
+//     }
+
 //     // Cache the result in localStorage for offline use
-//     localStorage.setItem("cachedRoutes", JSON.stringify(data))
+//     try {
+//       localStorage.setItem("cachedRoutes", JSON.stringify(data))
+//     } catch (storageError) {
+//       console.warn("Failed to cache routes:", storageError)
+//     }
 
 //     return data
 //   } catch (error) {
 //     console.error("Error in getRoutes:", error)
-//     const { error: errorMessage } = handleSupabaseError(error)
-//     throw new Error(errorMessage)
+
+//     // Try to get from local storage as fallback
+//     try {
+//       const cachedRoutes = localStorage.getItem("cachedRoutes")
+//       if (cachedRoutes) {
+//         console.log("Using cached routes due to fetch error")
+//         return JSON.parse(cachedRoutes)
+//       }
+//     } catch (cacheError) {
+//       console.warn("Error reading cached routes:", cacheError)
+//     }
+
+//     // Return fallback routes if all else fails
+//     console.log("Using fallback routes due to fetch error")
+//     return getFallbackRoutes()
 //   }
+// }
+
+// // Fallback routes for when network requests fail
+// function getFallbackRoutes(): Route[] {
+//   return [
+//     {
+//       shuttle_id: "SH-1001",
+//       departure_location: "Main Campus",
+//       arrival_location: "Kongo Campus",
+//       base_price: 150,
+//       premium_price: 250,
+//       created_at: new Date().toISOString(),
+//     },
+//     {
+//       shuttle_id: "SH-1002",
+//       departure_location: "Kongo Campus",
+//       arrival_location: "Main Campus",
+//       base_price: 150,
+//       premium_price: 250,
+//       created_at: new Date().toISOString(),
+//     },
+//     {
+//       shuttle_id: "SH-1003",
+//       departure_location: "Main Campus",
+//       arrival_location: "Samaru",
+//       base_price: 120,
+//       premium_price: 200,
+//       created_at: new Date().toISOString(),
+//     },
+//     {
+//       shuttle_id: "SH-1004",
+//       departure_location: "Samaru",
+//       arrival_location: "Main Campus",
+//       base_price: 120,
+//       premium_price: 200,
+//       created_at: new Date().toISOString(),
+//     },
+//   ]
 // }
 
 // // Verify ticket
@@ -440,12 +568,12 @@
 //     if (shuttleData.facilities) {
 //       try {
 //         if (typeof shuttleData.facilities === "string") {
-//           // Try to parse and re-stringify to ensure valid JSON
+//           // Parse the string and ensure it's an array of strings
 //           const parsed = JSON.parse(shuttleData.facilities)
-//           shuttleData.facilities = parsed
+//           shuttleData.facilities = Array.isArray(parsed) ? parsed : []
 //         } else if (Array.isArray(shuttleData.facilities)) {
-//           // Convert array to JSON string
-//           shuttleData.facilities = JSON.parse(JSON.stringify(shuttleData.facilities))
+//           // Keep array as is, no conversion needed
+//           shuttleData.facilities = shuttleData.facilities
 //         } else {
 //           // Default to empty array if invalid
 //           shuttleData.facilities = []
@@ -487,12 +615,12 @@
 //     if (shuttleData.facilities) {
 //       try {
 //         if (typeof shuttleData.facilities === "string") {
-//           // Try to parse and re-stringify to ensure valid JSON
+//           // Try to parse string to array
 //           const parsed = JSON.parse(shuttleData.facilities)
-//           shuttleData.facilities = parsed
+//           shuttleData.facilities = Array.isArray(parsed) ? parsed : []
 //         } else if (Array.isArray(shuttleData.facilities)) {
-//           // Convert array to JSON string
-//           shuttleData.facilities = JSON.parse(JSON.stringify(shuttleData.facilities))
+//           // Keep array as is
+//           shuttleData.facilities = shuttleData.facilities
 //         } else {
 //           // Default to empty array if invalid
 //           shuttleData.facilities = []
@@ -602,6 +730,7 @@
 // }
 import { supabase, handleSupabaseError, isOnline } from "./supabase"
 import type { Booking, Passenger, Shuttle, Route, ContactInfo, User } from "./definitions"
+import { createClient } from "@supabase/supabase-js"
 
 // Improved sanitizeShuttle function with better error handling
 const sanitizeShuttle = (shuttle: any) => {
@@ -1311,22 +1440,90 @@ export async function addDriver(driverData: { shuttle_id: string; driver_name: s
   }
 }
 
-// Get all drivers
-export async function getDrivers(): Promise<any[]> {
-  try {
-    const { data, error } = await supabase.from("drivers").select(`
-        *,
-        shuttle:shuttles(*)
-      `)
+// // Get all drivers
+// export async function getDrivers(): Promise<any[]> {
+//   try {
+//     const { data, error } = await supabase.from("drivers").select(`
+//         *,
+//         shuttle:shuttles(*)
+//       `)
 
-    if (error) {
-      throw error
+//     if (error) {
+//       throw error
+//     }
+
+//     return data
+//   } catch (error) {
+//     console.error("Error in getDrivers:", error)
+//     const { error: errorMessage } = handleSupabaseError(error)
+//     throw new Error(errorMessage)
+//   }
+// }
+
+// Helper function to generate refund ID
+function generateRefundId() {
+  return `RF-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`
+}
+
+export async function updateBookingStatus(bookingId: string, status: 'upcoming' | 'completed' | 'cancelled') {
+  try {
+    const updateData: any = { 
+      status,
+      // Add refund_status when cancelling
+      ...(status === 'cancelled' ? {
+        refund_id: generateRefundId(),
+        refund_status: 'NOT REFUNDED'
+      } : {})
     }
 
-    return data
+    const { data, error } = await supabase
+      .from('bookings')
+      .update(updateData)
+      .eq('booking_id', bookingId)
+      .select('*')
+
+    if (error) {
+      console.error('Database error:', error)
+      throw new Error(error.message)
+    }
+
+    return { 
+      data: data?.[0], 
+      error: null,
+      refund_id: status === 'cancelled' ? data?.[0]?.refund_id : null 
+    }
   } catch (error) {
-    console.error("Error in getDrivers:", error)
-    const { error: errorMessage } = handleSupabaseError(error)
-    throw new Error(errorMessage)
+    console.error('Update error:', error)
+    return { 
+      data: null, 
+      error: 'Failed to update booking status',
+      refund_id: null 
+    }
+  }
+}
+
+export async function updateRefundStatus(bookingId: string, status: 'REFUNDED' | 'NOT REFUNDED') {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ refund_status: status })
+      .eq('booking_id', bookingId)
+      .select('*')
+
+    if (error) {
+      console.error('Database error:', error)
+      throw new Error(error.message)
+    }
+
+    return { 
+      data: data?.[0], 
+      error: null
+    }
+  } catch (error) {
+    console.error('Update error:', error)
+    return { 
+      data: null, 
+      error: 'Failed to update refund status'
+    }
   }
 }

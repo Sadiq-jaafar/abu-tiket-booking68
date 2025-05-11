@@ -3,68 +3,40 @@ import { supabase, handleSupabaseError, isOnline } from "./supabase"
 // Get passengers for a driver's shuttle
 export async function getDriverShuttlePassengers(shuttleId: string) {
   try {
-    // If offline, try to get from local storage
-    if (!isOnline()) {
-      const cachedPassengers = localStorage.getItem(`shuttle_passengers_${shuttleId}`)
-      if (cachedPassengers) {
-        return JSON.parse(cachedPassengers)
-      }
-      return []
+    const { data: passengers, error } = await supabase
+      .from('passengers')
+      .select(`
+        *,
+        bookings!inner (
+          booking_id,
+          status,
+          pickup_address,
+          dropoff_address,
+          shuttle_id
+        )
+      `)
+      .eq('bookings.shuttle_id', shuttleId)
+
+    if (error) {
+      throw error
     }
 
-    // First, get all bookings for this shuttle
-    const { data: bookings, error: bookingsError } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("shuttle_id", shuttleId)
-      .eq("status", "upcoming")
+    // Transform the data to match our Passenger interface
+    return passengers.map(p => ({
+      id: p.passenger_id,
+      name: `${p.first_name} ${p.last_name}`,
+      idNumber: p.id_number,
+      bookingId: p.bookings.booking_id,
+      status: p.bookings.status === 'cancelled' ? 'no-show' : p.check_in_status || 'pending',
+      seatNumber: p.seat_number || 'Not assigned',
+      pickupLocation: p.bookings.pickup_address,
+      dropoffLocation: p.bookings.dropoff_address,
+      contactNumber: p.contact_number
+    }))
 
-    if (bookingsError) {
-      console.error("Error fetching bookings:", bookingsError)
-      throw bookingsError
-    }
-
-    if (!bookings || bookings.length === 0) {
-      return []
-    }
-
-    // Get all booking IDs
-    const bookingIds = bookings.map((booking) => booking.booking_id)
-
-    // Get all passengers for these bookings
-    const { data: passengers, error: passengersError } = await supabase
-      .from("passengers")
-      .select("*")
-      .in("booking_id", bookingIds)
-
-    if (passengersError) {
-      console.error("Error fetching passengers:", passengersError)
-      throw passengersError
-    }
-
-    // Format the data for the driver's view
-    const formattedPassengers = passengers.map((passenger, index) => {
-      const booking = bookings.find((b) => b.booking_id === passenger.booking_id)
-      return {
-        id: passenger.id || `PSG-${1000 + index}`,
-        name: `${passenger.first_name} ${passenger.last_name}`,
-        idNumber: passenger.id_number,
-        bookingId: passenger.booking_id,
-        status: booking?.check_in_status || "pending", // Use check_in_status if available
-        seatNumber: passenger.seat_number || `${String.fromCharCode(65 + Math.floor(index / 4))}${(index % 4) + 1}`, // Generate seat numbers like A1, A2, etc.
-        pickupLocation: booking?.pickup_address || "",
-        dropoffLocation: booking?.dropoff_address || "",
-      }
-    })
-
-    // Cache the result in localStorage for offline use
-    localStorage.setItem(`shuttle_passengers_${shuttleId}`, JSON.stringify(formattedPassengers))
-
-    return formattedPassengers
   } catch (error) {
-    console.error("Error in getDriverShuttlePassengers:", error)
-    const { error: errorMessage } = handleSupabaseError(error)
-    throw new Error(errorMessage)
+    console.error('Error fetching passengers:', error)
+    throw error
   }
 }
 

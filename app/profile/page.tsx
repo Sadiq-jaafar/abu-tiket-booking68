@@ -33,7 +33,7 @@ export default function ProfilePage() {
     id_type: "",
     id_number: "",
     user_type: "",
-    role: "",
+    role: "passenger" as "passenger" | "admin" | "driver",
   })
 
   useEffect(() => {
@@ -181,7 +181,9 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-[#f5f5f5]">
       <SiteHeader
         isLoggedIn={true}
-        userType={user?.user_type || "student"}
+        userType={(user?.user_type === "student" || user?.user_type === "staff" || user?.user_type === "admin" || user?.user_type === "driver" 
+          ? user.user_type 
+          : "student")}
         userName={getFullName()}
         userInitials={getUserInitials()}
       />

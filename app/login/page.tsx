@@ -17,6 +17,7 @@ import { SiteHeader } from "@/components/site-header"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { signIn } from "@/lib/auth"
 import { supabase } from "@/lib/supabase"
+import { SiteFooter } from "@/components/site-footer"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -439,8 +440,9 @@ export default function LoginPage() {
           </Card>
         </div>
       </main>
+      <SiteFooter />
 
-      <footer className="py-8 mt-12 bg-[#006400] text-white">
+      {/* <footer className="py-8 mt-12 bg-[#006400] text-white">
         <div className="container px-4 mx-auto">
           <div className="grid gap-8 md:grid-cols-4">
             <div>
@@ -513,8 +515,8 @@ export default function LoginPage() {
           <div className="pt-8 mt-8 text-sm text-center text-green-200 border-t border-green-700">
             © {new Date().getFullYear()} Ahmadu Bello University, Zaria. All rights reserved.
           </div>
-        </div>
-      </footer>
+        </div> */}
+      {/* </footer> */}
     </div>
   )
 }

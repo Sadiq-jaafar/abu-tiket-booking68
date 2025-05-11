@@ -2,161 +2,90 @@
 import { supabase, handleSupabaseError as importedHandleSupabaseError, isOnline as importedIsOnline } from "./supabase";
 import type { Booking, Passenger, Shuttle, Route, ContactInfo, User } from "./definitions";
 
+function generateBookingId(): string {
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.floor(1000 + Math.random() * 9000);
+  return `ABU-${timestamp}${random}`;
+}
+
+async function fetchRouteByShuttleId(shuttleId: string) {
+  const { data: route, error } = await supabase
+    .from('routes')
+    .select('*')
+    .eq('shuttle_id', shuttleId)
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to fetch route: ${error.message}`);
+  }
+
+  return route;
+}
+
 export async function createBooking(
-  bookingData: Omit<Booking, "booking_id">,
+  bookingData: Booking,
   passengers: Passenger[],
   contactInfo: ContactInfo,
-): Promise<{ booking: Booking; error: string | null }> {
+): Promise<{ booking: Booking | null; error: string | null }> {
   try {
     // Validate required fields
-    const requiredFields = [
-      { field: bookingData.user_id, name: "user_id" },
-      { field: bookingData.shuttle_id, name: "shuttle_id" },
-      { field: bookingData.departure_date, name: "departure_date" },
-    ];
-
-    const missingFields = requiredFields.filter(f => !f.field).map(f => f.name);
-    if (missingFields.length > 0) {
-      throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
+    if (!bookingData.user_id) {
+      throw new Error("User ID is required");
     }
 
-    // Validate passenger data
-    if (!passengers || passengers.length === 0) {
-      throw new Error("At least one passenger is required");
-    }
+    const booking_id = generateBookingId();
 
-    // Generate booking ID
-    const bookingId = `ABU-${Math.floor(10000000 + Math.random() * 90000000)}`;
-
-    // Start transaction
+    // Create booking with required fields
     const { data: booking, error: bookingError } = await supabase
-      .from("bookings")
-      .insert([{
-        booking_id: bookingId,
-        user_id: bookingData.user_id,
-        shuttle_id: bookingData.shuttle_id,
-        departure_date: bookingData.departure_date,
-        departure_time: bookingData.departure_time || "08:00:00",
-        arrival_time: bookingData.arrival_time || "10:00:00",
-        booking_date: new Date().toISOString(),
-        status: "upcoming",
-        is_premium: bookingData.is_premium || false,
-        price: bookingData.price || 0,
-        total_amount: bookingData.total_amount || 0,
-        pickup_address: bookingData.pickup_address || "",
-        dropoff_address: bookingData.dropoff_address || "",
-        check_in_status: "pending",
+      .from('bookings')
+      .insert([{ 
+        ...bookingData,
+        booking_id,
+        user_id: bookingData.user_id // Ensure user_id is included
       }])
       .select()
       .single();
 
     if (bookingError) {
-      throw {
-        type: "booking_creation_error",
-        error: bookingError,
-        context: {
-          bookingId,
-          userId: bookingData.user_id,
-          shuttleId: bookingData.shuttle_id,
-          timestamp: new Date().toISOString()
-        }
-      };
+      throw new Error(`Failed to create booking: ${bookingError.message}`);
     }
 
-    // Insert contact info
-    const { error: contactError } = await supabase
-      .from("contact_info")
-      .insert([{
-        booking_id: bookingId,
-        email: contactInfo.email,
-        phone: contactInfo.phone,
-        special_requests: contactInfo.special_requests || "",
-      }]);
-
-    if (contactError) {
-      throw {
-        type: "contact_info_error",
-        error: contactError,
-        context: {
-          bookingId,
-          email: contactInfo.email,
-          phone: contactInfo.phone
-        }
-      };
-    }
-
-    // Validate and insert passengers
-    const validatedPassengers = passengers.map(p => ({
+    // Create passengers with the booking ID
+    const passengersWithBookingId = passengers.map(p => ({
       ...p,
-      booking_id: bookingId,
-      created_at: new Date().toISOString()
+      booking_id,
+      shuttle_id: bookingData.shuttle_id
     }));
 
     const { error: passengersError } = await supabase
-      .from("passengers")
-      .insert(validatedPassengers);
+      .from('passengers')
+      .insert(passengersWithBookingId);
 
     if (passengersError) {
-      throw {
-        type: "passenger_insert_error",
-        error: passengersError,
-        context: {
-          bookingId,
-          passengerCount: passengers.length
-        }
-      };
+      throw new Error(`Failed to create passengers: ${passengersError.message}`);
     }
 
-    return {
-      booking: { 
-        ...booking,
-        passengers: validatedPassengers,
-        contactInfo: {
-          ...contactInfo,
-          booking_id: bookingId
-        }
-      },
-      error: null
+    // Create contact info
+    const contactWithBookingId = {
+      ...contactInfo,
+      booking_id
     };
+
+    const { error: contactError } = await supabase
+      .from('contact_info')
+      .insert([contactWithBookingId]);
+
+    if (contactError) {
+      throw new Error(`Failed to create contact info: ${contactError.message}`);
+    }
+
+    return { booking, error: null };
 
   } catch (error) {
-    // Enhanced error logging
-    const errorDetails = {
-      timestamp: new Date().toISOString(),
-      error: error instanceof Error ? {
-        message: error.message,
-        stack: error.stack
-      } : error,
-      context: (error as { context?: object })?.context || {}
-    };
-
-    console.error("CreateBooking Error:", JSON.stringify(errorDetails, null, 2));
-
-    // Offline handling
-    if (!importedIsOnline()) {
-      try {
-        const pendingBookings = JSON.parse(localStorage.getItem("pendingBookings") || "[]");
-        pendingBookings.push({
-          bookingData,
-          passengers,
-          contactInfo
-        });
-        localStorage.setItem("pendingBookings", JSON.stringify(pendingBookings));
-        return { 
-          booking: {} as Booking,
-          error: "Booking saved locally. Will sync when online."
-        };
-      } catch (e) {
-        return { 
-          booking: {} as Booking,
-          error: "Failed to save booking locally. Please check your input."
-        };
-      }
-    }
-
+    console.error('Booking creation failed:', error);
     return { 
-      booking: {} as Booking,
-      error: importedHandleSupabaseError(error).error
+      booking: null, 
+      error: error instanceof Error ? error.message : 'Failed to create booking'
     };
   }
 }
@@ -200,3 +129,4 @@ export const handleSupabaseError = (error: any): string => {
 };
 
 export const isOnline = () => typeof navigator !== "undefined" && navigator.onLine;
+

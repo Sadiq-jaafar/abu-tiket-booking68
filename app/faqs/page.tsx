@@ -57,7 +57,7 @@ export default function FAQsPage() {
                 <h2 className="text-xl font-semibold text-[#006400] mb-4">{category.title}</h2>
 
                 <Accordion type="single" collapsible className="w-full">
-                  {(searchTerm ? filteredFaqs.find((c) => c.id === category.id)?.faqs : category.faqs).map(
+                  {(searchTerm ? filteredFaqs.find((c) => c.id === category.id)?.faqs ?? [] : category.faqs).map(
                     (faq, index) => (
                       <AccordionItem key={index} value={`item-${index}`}>
                         <AccordionTrigger className="text-left">{faq.question}</AccordionTrigger>

@@ -1,16 +1,17 @@
 "use client"
 
+// import { signOut } from "next-auth/react"
 import { Checkbox } from "@/components/ui/checkbox"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, Globe, Lock, Moon, Shield, Sun, User, Smartphone, LogOut, AlertCircle } from "lucide-react"
+import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
-import { useAuth } from "@/lib/auth-context"
+
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -26,12 +27,39 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import Link from "next/link"
+import { Bell, Globe, LogOut, Lock, Moon, Shield, Smartphone, Sun, User, AlertCircle } from "lucide-react"
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { user, profile, isLoading: authLoading, signOut } = useAuth()
+
+  // Add state for header props
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userType, setUserType] = useState<"student" | "staff" | "admin" | "driver">("student")
+  const [userName, setUserName] = useState("")
+  const [userInitials, setUserInitials] = useState("")
+
+  // Add auth check effect
+  useEffect(() => {
+    const storedIsLoggedIn = localStorage.getItem("isLoggedIn") === "true"
+    const storedUserType = localStorage.getItem("userType") as "student" | "staff" | "admin" | "driver"
+    const storedUserName = localStorage.getItem("userName")
+    const storedUserInitials = localStorage.getItem("userInitials")
+
+    if (!storedIsLoggedIn) {
+      router.push("/login?redirect=/settings")
+      return
+    }
+
+    setIsLoggedIn(storedIsLoggedIn)
+    setUserType(storedUserType || "student")
+    setUserName(storedUserName || "")
+    setUserInitials(storedUserInitials || "")
+  }, [router])
+
   const [isLoading, setIsLoading] = useState(true)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
   const [theme, setTheme] = useState("light")
   const [notifications, setNotifications] = useState({
     email: true,
@@ -71,41 +99,55 @@ export default function SettingsPage() {
     // In a real app, save this preference to the user's profile
   }
 
-  const handleDeleteAccount = () => {
-    // In a real app, this would call an API to delete the user's account
-    alert("Account deletion would be processed here")
-    setShowDeleteDialog(false)
-    signOut()
-  }
+  // const handleDeleteAccount = () => {
+  //   // In a real app, this would call an API to delete the user's account
+  //   alert("Account deletion would be processed here")
+  //   setShowDeleteDialog(false)
+  //   // signOut()
+  // }
 
   if (isLoading || authLoading) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5]">
-        <SiteHeader />
-        <div className="container px-4 py-8 mx-auto">
+      <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
+        <SiteHeader
+          isLoggedIn={isLoggedIn}
+          userType={userType}
+          userName={userName}
+          userInitials={userInitials}
+        />
+        <main className="flex-1 container mx-auto px-4 py-8">
           <div className="flex justify-center items-center h-64">
             <p className="text-lg">Loading settings...</p>
           </div>
-        </div>
+        </main>
         <SiteFooter />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
-      <SiteHeader />
+    <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
+      <SiteHeader
+        isLoggedIn={isLoggedIn}
+        userType={userType}
+        userName={userName}
+        userInitials={userInitials}
+      />
 
-      <div className="container px-4 py-8 mx-auto">
-        {/* Add a link to go back to profile at the top */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-[#006400]">Settings</h1>
-          <Button variant="outline" className="text-[#006400] border-[#006400] hover:bg-[#e6f2e6]" asChild>
-            <Link href="/profile">Back to Profile</Link>
-          </Button>
-        </div>
-
+      <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
+          {/* Back to profile link */}
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold text-[#006400]">Settings</h1>
+            <Button
+              variant="outline"
+              className="text-[#006400] border-[#006400] hover:bg-[#e6f2e6]"
+              asChild
+            >
+              <Link href="/profile">Back to Profile</Link>
+            </Button>
+          </div>
+
           <Tabs defaultValue="general">
             <div className="flex flex-col md:flex-row gap-6">
               <div className="md:w-64">
@@ -542,7 +584,7 @@ export default function SettingsPage() {
             </div>
           </Tabs>
         </div>
-      </div>
+      </main>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
@@ -576,8 +618,9 @@ export default function SettingsPage() {
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleteConfirmation !== "DELETE"}>
+            <Button variant="destructive"  disabled={deleteConfirmation !== "DELETE"}>
               Delete Account
+              {/* onClick={handleDeleteAccount} */}
             </Button>
           </DialogFooter>
         </DialogContent>

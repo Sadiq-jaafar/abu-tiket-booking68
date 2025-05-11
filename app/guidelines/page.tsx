@@ -1,4 +1,5 @@
 import { PageLayout } from "@/components/page-layout"
+import React from "react"
 
 export default function StudentGuidelinesPage() {
   return (

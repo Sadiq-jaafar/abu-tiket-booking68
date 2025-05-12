@@ -16,6 +16,28 @@ import { AdminHeader } from "@/components/admin-header"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { supabase } from "@/lib/supabase"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Check, ChevronsUpDown } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+interface ShuttleFormData {
+  shuttle_id: string
+  type: string
+  category: string
+  capacity: string
+  facilities: string[]
+  status: 'active' | 'maintenance' | 'inactive'
+  driver_name: string
+  departure_location: string
+  arrival_location: string
+  base_price: string
+  premium_price: string
+  isPremium: boolean
+  pickup_point?: string
+  destination?: string
+  route_id?: number
+}
 
 export default function NewShuttlePage() {
   const router = useRouter()
@@ -24,19 +46,19 @@ export default function NewShuttlePage() {
   const [success, setSuccess] = useState<string | null>(null)
 
   // Form state
-  const [formData, setFormData] = useState({
-    shuttleId: "",
-    type: "Campus Bus",
-    category: "Student",
-    capacity: 40,
-    status: "active",
-    facilities: [] as string[],
-    isPremium: false,
-    driverName: "",
-    departureLocation: "",
-    arrivalLocation: "",
-    basePrice: 100,
-    premiumPrice: 150,
+  const [formData, setFormData] = useState<ShuttleFormData>({
+    shuttle_id: '',
+    type: '',
+    category: '',
+    capacity: '',
+    facilities: [],
+    status: 'active',
+    driver_name: '',
+    departure_location: '',
+    arrival_location: '',
+    base_price: '',
+    premium_price: '',
+    isPremium: false
   })
 
   const [facilityInput, setFacilityInput] = useState("")
@@ -71,8 +93,11 @@ export default function NewShuttlePage() {
   }, [router])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    const { name, value, type } = e.target
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "number" ? (value ? Number(value) : "") : value
+    }))
   }
 
   const handleSelectChange = (name: string, value: string) => {
@@ -103,64 +128,107 @@ export default function NewShuttlePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setError(null)
-    setSuccess(null)
+    setError("")
+
+    // Validate required fields
+    const requiredFields = [
+      "shuttle_id",
+      "type",
+      "category",
+      "capacity",
+      "departure_location",
+      "arrival_location",
+      "base_price"
+    ]
+
+    const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData])
+    if (missingFields.length > 0) {
+      setError(`Please fill in all required fields: ${missingFields.join(", ")}`)
+      setIsLoading(false)
+      return
+    }
+
+    // Validate departure and arrival locations are different
+    if (formData.departure_location === formData.arrival_location) {
+      setError("Departure and arrival locations must be different")
+      setIsLoading(false)
+      return
+    }
 
     try {
-      // Basic validation
-      if (
-        !formData.shuttleId ||
-        !formData.type ||
-        !formData.category ||
-        !formData.departureLocation ||
-        !formData.arrivalLocation
-      ) {
-        throw new Error("Please fill in all required fields")
-      }
+      const shuttleId = formData.shuttle_id || `SHUT-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+      const routeId = Math.floor(Math.random() * 2147483647) + 1
 
-      // Start a transaction
-      // First, insert the shuttle
-      const { data: shuttle, error: shuttleError } = await supabase
+      // Create shuttle first
+      const { error: shuttleError } = await supabase
         .from("shuttles")
         .insert({
-          shuttle_id: formData.shuttleId,
+          shuttle_id: shuttleId,
           type: formData.type,
           category: formData.category,
-          capacity: formData.capacity,
+          capacity: parseInt(formData.capacity),
+          facilities: formData.facilities || [],
           status: formData.status,
-          facilities: formData.facilities,
-          is_premium: formData.isPremium,
-          driver_name: formData.driverName,
+          is_premium: formData.category === "Premium",
+          driver_name: formData.driver_name || null,
+          pickup_point: formData.departure_location, // Add pickup point
+          destination: formData.arrival_location,    // Add destination
+          route_id: routeId,                        // Add route_id
+          created_at: new Date().toISOString(),
         })
-        .select()
-        .single()
 
       if (shuttleError) {
-        throw shuttleError
+        throw new Error(`Shuttle creation failed: ${shuttleError.message}`)
       }
 
-      // Then, insert the route
-      const { error: routeError } = await supabase.from("routes").insert({
-        departure_location: formData.departureLocation,
-        arrival_location: formData.arrivalLocation,
-        base_price: formData.basePrice,
-        premium_price: formData.premiumPrice,
-        shuttle_id: formData.shuttleId,
-      })
+      // Then create the route that references the shuttle
+      const { error: routeError } = await supabase
+        .from("routes")
+        .insert({
+          id: routeId,
+          departure_location: formData.departure_location,
+          arrival_location: formData.arrival_location,
+          base_price: parseFloat(formData.base_price),
+          premium_price: formData.premium_price ? parseFloat(formData.premium_price) : parseFloat(formData.base_price) * 1.5,
+          shuttle_id: shuttleId,
+          created_at: new Date().toISOString(),
+        })
 
       if (routeError) {
-        throw routeError
+        // Rollback shuttle creation if route creation fails
+        await supabase.from("shuttles").delete().match({ shuttle_id: shuttleId })
+        throw new Error(`Route creation failed: ${routeError.message}`)
       }
 
-      setSuccess("Shuttle and route added successfully!")
+      setSuccess("Shuttle and route created successfully!")
 
-      // Redirect to shuttles page after a short delay
+      // Clear form
+      setFormData({
+        shuttle_id: '',
+        type: '',
+        category: '',
+        capacity: '',
+        facilities: [] as string[],
+        status: 'active' as const,
+        driver_name: '',
+        departure_location: '',
+        arrival_location: '',
+        base_price: '',
+        premium_price: '',
+        isPremium: false
+      })
+
+      // Redirect after success
       setTimeout(() => {
         router.push("/admin/shuttles")
       }, 2000)
-    } catch (err: any) {
-      console.error("Error adding shuttle:", err)
-      setError(err.message || "An error occurred while adding the shuttle. Please try again.")
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message)
+      } else {
+        setError("Failed to create shuttle and route")
+      }
+      console.error("Creation error:", error)
     } finally {
       setIsLoading(false)
     }
@@ -202,14 +270,15 @@ export default function NewShuttlePage() {
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
                   <div className="space-y-2">
-                    <Label htmlFor="shuttleId">Shuttle ID *</Label>
+                    <Label htmlFor="shuttle_id">Shuttle ID *</Label>
                     <Input
-                      id="shuttleId"
-                      name="shuttleId"
-                      placeholder="e.g., SH-1001"
-                      value={formData.shuttleId}
+                      id="shuttle_id"
+                      name="shuttle_id"
+                      value={formData.shuttle_id}
                       onChange={handleChange}
+                      placeholder="Enter shuttle ID"
                       required
                     />
                   </div>
@@ -231,69 +300,124 @@ export default function NewShuttlePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="departureLocation">Departure Location *</Label>
-                    <Select
-                      value={formData.departureLocation}
-                      onValueChange={(value) => handleSelectChange("departureLocation", value)}
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select departure location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {campusLocations.map((location) => (
-                          <SelectItem key={`departure-${location}`} value={location}>
-                            {location}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="departure_location">Departure Location *</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between"
+                        >
+                          {formData.departure_location || "Select departure location..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput placeholder="Search location..." />
+                          <CommandEmpty>No location found.</CommandEmpty>
+                          <CommandGroup>
+                            {campusLocations.map((location) => (
+                              <CommandItem
+                                key={location}
+                                onSelect={() => handleSelectChange("departure_location", location)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.departure_location === location ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {location}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      className="mt-2"
+                      placeholder="Or type custom location"
+                      value={formData.departure_location}
+                      onChange={(e) => handleSelectChange("departure_location", e.target.value)}
+                    />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="arrivalLocation">Arrival Location *</Label>
-                    <Select
-                      value={formData.arrivalLocation}
-                      onValueChange={(value) => handleSelectChange("arrivalLocation", value)}
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select arrival location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {campusLocations.map((location) => (
-                          <SelectItem key={`arrival-${location}`} value={location}>
-                            {location}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="arrival_location">Arrival Location *</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between"
+                        >
+                          {formData.arrival_location || "Select arrival location..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput placeholder="Search location..." />
+                          <CommandEmpty>No location found.</CommandEmpty>
+                          <CommandGroup>
+                            {campusLocations.map((location) => (
+                              <CommandItem
+                                key={location}
+                                onSelect={() => handleSelectChange("arrival_location", location)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.arrival_location === location ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {location}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      className="mt-2"
+                      placeholder="Or type custom location"
+                      value={formData.arrival_location}
+                      onChange={(e) => handleSelectChange("arrival_location", e.target.value)}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="basePrice">Base Price (₦) *</Label>
                     <Input
-                      id="basePrice"
-                      name="basePrice"
+                      id="base_price"
+                      name="base_price"
                       type="number"
-                      min="0"
-                      value={formData.basePrice}
+                      min="10"
+                      step="10"
+                      value={formData.base_price}
                       onChange={handleChange}
+                      onWheel={(e) => e.currentTarget.blur()}
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="premiumPrice">Premium Price (₦) *</Label>
+                    <Label htmlFor="premium_price">Premium Price (₦)</Label>
                     <Input
-                      id="premiumPrice"
-                      name="premiumPrice"
+                      id="premium_price"
+                      name="premium_price"
                       type="number"
-                      min="0"
-                      value={formData.premiumPrice}
+                      min={formData.base_price ? parseFloat(formData.base_price) : 0}
+                      step="10"
+                      value={formData.premium_price}
                       onChange={handleChange}
-                      required
+                      onWheel={(e) => e.currentTarget.blur()}
+                      placeholder={formData.base_price ? `Min: ${parseFloat(formData.base_price) * 1.5}` : 'Enter base price first'}
                     />
+                    <p className="text-sm text-gray-500">
+                      Must be at least 50% more than base price
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -317,9 +441,12 @@ export default function NewShuttlePage() {
                       id="capacity"
                       name="capacity"
                       type="number"
-                      min="1"
+                      min="4"
+                      max="100"
+                      step="1"
                       value={formData.capacity}
                       onChange={handleChange}
+                      onWheel={(e) => e.currentTarget.blur()} // Prevent mousewheel changes
                       required
                     />
                   </div>
@@ -340,13 +467,13 @@ export default function NewShuttlePage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="driverName">Driver Name</Label>
-                    <Input
-                      id="driverName"
-                      name="driverName"
-                      placeholder="e.g., John Doe"
-                      value={formData.driverName}
-                      onChange={handleChange}
-                    />
+                   <Input
+                        id="driver_name"
+                        name="driver_name"
+                        placeholder="e.g., John Doe"
+                        value={formData.driver_name}
+                        onChange={handleChange}
+                      />
                   </div>
                 </div>
 

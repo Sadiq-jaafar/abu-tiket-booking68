@@ -96,6 +96,7 @@ export default function DriverLoginPage() {
     }
 
   return (
+    <div className=" flex flex-col min-h-screen">
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
@@ -152,7 +153,9 @@ export default function DriverLoginPage() {
           <p className="text-sm text-gray-600">Contact admin for account issues</p>
         </CardFooter>
       </Card>
-      <SiteFooter />
+      
+    </div>
+    <SiteFooter />
     </div>
   )
 }

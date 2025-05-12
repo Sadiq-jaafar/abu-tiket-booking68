@@ -23,10 +23,11 @@ interface Shuttle {
   category: string
   capacity: number
   facilities: string[]
-  status: string
+  status: "active" | "maintenance" | "inactive"
   is_premium: boolean
   created_at: string
   driver_name: string
+  route_id?: string // Add route ID reference
 }
 
 export default function AdminShuttlesPage() {

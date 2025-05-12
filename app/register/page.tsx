@@ -16,6 +16,7 @@ import { SiteHeader } from "@/components/site-header"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { signUp } from "@/lib/auth"
 import { SiteFooter } from "@/components/site-footer"
+import {User} from "@/lib/definitions"
 
 type RegistrationError = {
   message: string;
@@ -33,12 +34,12 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    firstName: "",
-    lastName: "",
-    phoneNumber: "",
-    idType: "student_id", // Default ID type
-    idNumber: "",
-    userType: "student", // Default user type
+    first_name: "",           // Changed from firstName
+    last_name: "",           // Changed from lastName
+    phone_number: "",        // Changed from phoneNumber
+    id_type: "student_id",
+    id_number: "",
+    user_type: "student",
     role: "passenger" as "passenger" | "admin" | "driver", // Default role
   })
 
@@ -57,92 +58,50 @@ export default function RegisterPage() {
     setError("")
     setSuccess("")
 
-    // Basic validation
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match")
-      setIsLoading(false)
-      return
-    }
-
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters long")
-      setIsLoading(false)
-      return
-    }
-
     try {
-      const { user, error } = await signUp(formData.email, formData.password, {
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        phone_number: formData.phoneNumber,
-        id_type: formData.idType,
-        id_number: formData.idNumber,
-        user_type: formData.userType,
-        role: formData.role,
-        email: formData.email,
-      })
-
-      if (error) {
-        // Handle specific error types
-        const registrationError = error as unknown as RegistrationError
-        let errorMessage = "" // Removed "Registration failed." prefix
-
-        switch (registrationError.code) {
-          case "auth/email-already-in-use":
-            errorMessage = "User already exists. Please try logging in instead."
-            break
-          case "auth/invalid-email":
-            errorMessage = "Please enter a valid email address."
-            break
-          case "auth/network-request-failed":
-            errorMessage = "Network error. Please check your connection."
-            break
-          default:
-            errorMessage = registrationError.message || "Registration failed. Please try again."
-        }
-
-        setError(errorMessage)
-
-        // If email exists, show login link in error alert
-        if (registrationError.code === "auth/email-already-in-use") {
-          return (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="flex items-center justify-between w-full">
-                <span>{error}</span>
-                <Link 
-                  href="/login" 
-                  className="text-destructive-foreground underline hover:no-underline ml-2"
-                >
-                  Login here
-                </Link>
-              </AlertDescription>
-            </Alert>
-          )
-        }
-
-        setIsLoading(false)
+      // Validate required fields
+      if (!formData.email || !formData.password || !formData.first_name || !formData.last_name) {
+        setError("Please fill in all required fields")
         return
       }
 
-      // Registration successful
-      setSuccess("Registration successful! Please check your email to confirm your account.")
+      // Create user data object that matches User interface
+      const userData = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone_number: formData.phone_number,
+        id_type: formData.id_type,
+        id_number: formData.id_number,
+        user_type: formData.user_type,
+        role: formData.role as "passenger" | "admin" | "driver",
+        email: formData.email
+      }
 
+      const result = await signUp(formData.email, formData.password, userData)
+
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+
+      // Successfully created user
+      setSuccess("Registration successful! Please check your email to confirm your account.")
+      
       // Clear form
       setFormData({
         email: "",
         password: "",
         confirmPassword: "",
-        firstName: "",
-        lastName: "",
-        phoneNumber: "",
-        idType: "student_id",
-        idNumber: "",
-        userType: "student",
+        first_name: "",
+        last_name: "",
+        phone_number: "",
+        id_type: "student_id",
+        id_number: "",
+        user_type: "student",
         role: "passenger",
       })
 
-      // Redirect to login page after a delay
+      // Redirect to login page after delay
       setTimeout(() => {
         router.push("/login?registered=true")
       }, 3000)
@@ -203,11 +162,11 @@ export default function RegisterPage() {
                     <div className="relative">
                       <UserIcon className="absolute w-4 h-4 text-gray-500 left-3 top-3" />
                       <Input
-                        id="firstName"
-                        name="firstName"
+                        id="first_name"
+                        name="first_name"
                         placeholder="First name"
                         className="pl-10"
-                        value={formData.firstName}
+                        value={formData.first_name}
                         onChange={handleChange}
                         required
                       />
@@ -218,11 +177,11 @@ export default function RegisterPage() {
                     <div className="relative">
                       <UserIcon className="absolute w-4 h-4 text-gray-500 left-3 top-3" />
                       <Input
-                        id="lastName"
-                        name="lastName"
+                        id="last_name"
+                        name="last_name"
                         placeholder="Last name"
                         className="pl-10"
-                        value={formData.lastName}
+                        value={formData.last_name}
                         onChange={handleChange}
                         required
                       />
@@ -252,11 +211,11 @@ export default function RegisterPage() {
                   <div className="relative">
                     <PhoneIcon className="absolute w-4 h-4 text-gray-500 left-3 top-3" />
                     <Input
-                      id="phoneNumber"
-                      name="phoneNumber"
+                      id="phone_number"
+                      name="phone_number"
                       placeholder="Your phone number"
                       className="pl-10"
-                      value={formData.phoneNumber}
+                      value={formData.phone_number}
                       onChange={handleChange}
                       required
                     />
@@ -266,7 +225,10 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="idType">ID Type</Label>
-                    <Select value={formData.idType} onValueChange={(value) => handleSelectChange("idType", value)}>
+                    <Select 
+                      value={formData.id_type} 
+                      onValueChange={(value) => handleSelectChange("id_type", value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select ID type" />
                       </SelectTrigger>
@@ -281,9 +243,9 @@ export default function RegisterPage() {
                     <Label htmlFor="idNumber">ID Number</Label>
                     <Input
                       id="idNumber"
-                      name="idNumber"
+                      name="id_number" // Changed to match formData
                       placeholder="Your ID number"
-                      value={formData.idNumber}
+                      value={formData.id_number} // Changed to match formData
                       onChange={handleChange}
                       required
                     />
@@ -293,7 +255,10 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="userType">User Type</Label>
-                    <Select value={formData.userType} onValueChange={(value) => handleSelectChange("userType", value)}>
+                    <Select 
+                      value={formData.user_type} 
+                      onValueChange={(value) => handleSelectChange("user_type", value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select user type" />
                       </SelectTrigger>

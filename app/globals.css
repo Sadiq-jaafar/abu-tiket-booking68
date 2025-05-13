@@ -92,3 +92,25 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+#reader {
+  width: 100% !important;
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+#reader video {
+  width: 100% !important;
+  height: auto !important;
+  border-radius: 0.5rem;
+}
+
+#reader__scan_region {
+  background: white;
+}
+
+#reader__scan_region img {
+  display: none;
+}

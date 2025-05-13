@@ -162,7 +162,7 @@ export default function DriverTripHistoryPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <DriverHeader driverName={driverInfo.name} onLogout={handleLogout} />
+      <DriverHeader title="Trip History"driverName={driverInfo.name} onLogout={handleLogout} />
 
       <main className="flex-1 container mx-auto px-4 py-6">
         <Card>

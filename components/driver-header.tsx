@@ -9,7 +9,9 @@ import { LogOut, Menu, Home, Users, QrCode, Clock, Settings } from "lucide-react
 interface DriverHeaderProps {
   driverName: string
   onLogout: () => void
+  title: string;
 }
+
 
 export function DriverHeader({ driverName, onLogout }: DriverHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)

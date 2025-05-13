@@ -191,7 +191,7 @@ export default function DriverDashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
-      <DriverHeader driverName={driverInfo.name} onLogout={handleLogout} />
+      <DriverHeader title="Dadhboard"driverName={driverInfo.name} onLogout={handleLogout} />
 
       <main className="container mx-auto px-4 py-6 flex-1">
         <div className="grid gap-6">

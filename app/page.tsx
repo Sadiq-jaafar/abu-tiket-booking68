@@ -38,6 +38,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { SiteFooter } from "@/components/site-footer"
+import Image from "next/image"
+import images from "@/constants/images"
 
 export default function Home() {
   const router = useRouter()
@@ -275,9 +277,17 @@ export default function Home() {
     <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
       <SiteHeader isLoggedIn={isLoggedIn} userType={userType} userName={userName} userInitials={userInitials} />
 
-      <main className="container px-4 py-8 mx-auto flex-1">
-        <section className="max-w-4xl mx-auto mb-12">
-          <div className="mb-8 text-center">
+      <main className="container px-4 py-8 mx-auto items-center justify-center flex-1">
+        <section className="max-w-4xl mx-auto mb-12 ">
+          <div className="flex items-center justify-center">
+            <Image
+            src={images.logo}
+            width={100}
+            height={100}
+            alt="logo"
+            />
+          </div>
+          <div className="mb-8 text-center ">
             <h2 className="text-3xl font-bold tracking-tight text-[#006400]">ABU Zaria Transport Booking</h2>
             <p className="mt-2 text-gray-600">Book campus shuttles and inter-campus transportation services</p>
           </div>
@@ -703,10 +713,16 @@ export default function Home() {
       <Card key={index} className="overflow-hidden border-[#006400] border-l-2">
         <CardHeader className="p-0">
           <div className="h-40 bg-gray-200">
-            <img
+            {/* <img
               src={`/placeholder.svg?height=160&width=320&text=${route.from}-${route.to}`}
               alt={`${route.from} to ${route.to}`}
               className="object-cover w-full h-full"
+            /> */}
+            <Image 
+            src={route.imgg}
+            alt={`${route.from} to ${route.to}`}
+            width={40}
+            className="object-cover w-full h-full"
             />
           </div>
         </CardHeader>
@@ -867,10 +883,10 @@ export default function Home() {
 }
 
 const popularRoutes = [
-  { from: "Main Campus", to: "Kongo Campus", price: 200, premiumAvailable: true },
-  { from: "Samaru", to: "Main Campus", price: 100, premiumAvailable: true },
-  { from: "Main Campus", to: "Shika", price: 250, premiumAvailable: true },
-  { from: "Kongo Campus", to: "Samaru", price: 200, premiumAvailable: false },
-  { from: "Main Campus", to: "Teaching Hospital", price: 200, premiumAvailable: true },
-  { from: "Samaru", to: "Shika", price: 250, premiumAvailable: false },
+  { from: "Main Campus", to: "Kongo Campus", price: 200, premiumAvailable: true , imgg: images.kongo },
+  { from: "Main Campus", to: "Shika", price: 250, premiumAvailable: true ,imgg: images.shika},
+  { from: "Kongo Campus", to: "Samaru", price: 200, premiumAvailable: false, imgg: images.abu },
+  { from: "Main Campus", to: "Teaching Hospital", price: 200, premiumAvailable: true, imgg: images.abuth },
+  { from: "Shika", to: "Main Campus", price: 250, premiumAvailable: false, imgg: images.abu },
+  { from: "North Gate", to: "Phase Two", price: 100, premiumAvailable: true, imgg: images.Phase2 },
 ]

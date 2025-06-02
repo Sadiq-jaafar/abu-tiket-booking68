@@ -49,16 +49,28 @@ const [driverInfo, setDriverInfo] = useState<DriverInfo | null>(null)
 
   }, []) // Add empty dependency array
 
+  // Update the scanner configuration in startScanner function
   const startScanner = () => {
     const html5QrCode = new Html5Qrcode(scannerDivId)
     scannerRef.current = html5QrCode
+
+    // Calculate responsive scan area
+    const isMobile = window.innerWidth < 768
+    const scanSize = isMobile 
+      ? Math.min(window.innerWidth * 0.8, 300)
+      : Math.min(window.innerWidth * 0.5, 400)
 
     html5QrCode
       .start(
         { facingMode: "environment" },
         {
           fps: 10,
-          qrbox: { width: 250, height: 250 },
+          qrbox: {
+            width: scanSize,
+            height: scanSize,
+          },
+          aspectRatio: isMobile ? 16/9 : 1,
+          disableFlip: false,
         },
         (decodedText) => {
           try {
@@ -144,7 +156,7 @@ const [driverInfo, setDriverInfo] = useState<DriverInfo | null>(null)
                   <div className="flex flex-col items-center">
                     <div
                       id={scannerDivId}
-                      className="w-full max-w-sm h-64 bg-gray-100 rounded-lg overflow-hidden mb-4"
+                      className="w-full aspect-video md:aspect-square max-h-[600px] bg-gray-100 rounded-lg overflow-hidden mb-4 relative"
                     ></div>
 
                     {scanning ? (

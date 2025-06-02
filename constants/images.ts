@@ -6,6 +6,12 @@ import Phase2 from "../public/phase2.jpg";
 import shika from "../public/shika.jpeg";
 import logo from "../public/ABUlog2.png";
 import hero from "../public/hero-pattern.svg";
+import white from "../public/abuwhite.png";
+import green from "../public/ABUtr.png";
+import shuttle from "../public/shuttle.png";
+import shuttle2 from "../public/shuttle2.png";
+
+
 
 
 
@@ -16,7 +22,11 @@ const images = {
   abuth,
   Phase2,
   logo,
-  hero
+  hero,
+  shuttle,
+  shuttle2,
+  white,  
+  green
 };
 
 export default images;

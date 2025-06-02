@@ -5,8 +5,9 @@ import type React from "react"
 import { useState, useEffect, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { CalendarIcon, MapPinIcon, SearchIcon, UsersIcon, ClockIcon, StarIcon } from "lucide-react"
+import { CalendarIcon, MapPinIcon, SearchIcon, UsersIcon, ClockIcon, StarIcon, ChevronRight } from "lucide-react"
 import { CheckCircle, InfoIcon } from "lucide-react"
+import { motion } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -275,24 +276,115 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
-      <SiteHeader isLoggedIn={isLoggedIn} userType={userType} userName={userName} userInitials={userInitials} />
+      <SiteHeader  isLoggedIn={isLoggedIn} userType={userType} userName={userName} userInitials={userInitials} />
 
       <main className="container px-4 py-8 mx-auto items-center justify-center flex-1">
-        <section className="max-w-4xl mx-auto mb-12 ">
-          <div className="flex items-center justify-center">
-            <Image
-            src={images.logo}
+        {/* Hero section */}
+        <section className="relative overflow-hidden bg-[#006400] text-white mb-12">
+  <div className="absolute inset-0 opacity-10"
+    style={{
+      backgroundImage: 'url("/hero-pattern.svg")',
+      backgroundRepeat: 'repeat',
+      backgroundSize: '20px 20px'
+    }}
+  ></div>
+  <div className="container px-4 py-16 mx-auto relative">
+    <div className="grid gap-8 md:grid-cols-2 items-center">
+      <motion.div 
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+        className="space-y-6"
+      >
+        <div className="flex items-center justify-start mb-6">
+          <Image
+            src={images.white}
             width={100}
             height={100}
             alt="logo"
-            />
+            className=" p-2"
+          />
+        </div>
+        <div className="mb-6">
+          <h2 className="text-4xl md:text-5xl font-bold leading-tight text-white mb-2">
+            ABU Zaria Transport Booking
+          </h2>
+          <p className="text-xl text-gray-200">
+            Book campus shuttles and inter-campus transportation services
+          </p>
+        </div>
+        <p className="text-lg text-gray-200 max-w-md">
+          Book reliable campus transportation with ease. Whether it's daily shuttles or special trips, we've got you covered.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <Button 
+            size="lg" 
+            className="bg-amber-500 hover:bg-amber-600 text-black"
+            onClick={() => document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            Book Now <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+          <Button 
+            onClick={() => router.push('/about')}
+            size="lg" 
+            variant="outline" 
+            className="border-white text-[#006400] hover:bg-white hover:text-[#006400]"
+          >
+            Learn More
+          </Button>
+        </div>
+        <div className="flex items-center gap-6 pt-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-amber-400">4K+</div>
+            <div className="text-sm text-gray-300">Daily Riders</div>
           </div>
-          <div className="mb-8 text-center ">
-            <h2 className="text-3xl font-bold tracking-tight text-[#006400]">ABU Zaria Transport Booking</h2>
-            <p className="mt-2 text-gray-600">Book campus shuttles and inter-campus transportation services</p>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-amber-400">98%</div>
+            <div className="text-sm text-gray-300">Satisfaction</div>
           </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-amber-400">24/7</div>
+            <div className="text-sm text-gray-300">Support</div>
+          </div>
+        </div>
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="relative"
+      >
+        <div className="relative h-[600px] w-full overflow-visible shadow-2xl rounded-lg transform-gpu">
+          <Image
+            src={images.shuttle2}
+            alt="Campus Shuttle"
+            fill
+            className="object-cover scale-110 transform hover:scale-125 transition-transform duration-500"
+            priority
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+        </div>
+        <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-lg shadow-xl z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-[#006400] flex items-center justify-center">
+              <MapPinIcon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">Real-time Tracking</div>
+              <div className="text-xs text-gray-500">Know exactly where your shuttle is</div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  </div>
+</section>
 
-          <Card className={`${isPremium ? "border-amber-500" : "border-[#006400]"} border-t-4`}>
+        <section className="max-w-4xl mx-auto mb-12 ">
+          
+
+          <Card className={`${isPremium ? "border-amber-500" : "border-[#006400]"} border-t-4`} id="booking-section">
             <CardContent className="p-6">
               <div className="flex justify-end mb-4">
                 <div className="flex items-center space-x-2">
